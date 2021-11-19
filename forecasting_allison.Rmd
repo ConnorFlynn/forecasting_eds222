@@ -1,0 +1,81 @@
+---
+title: "Forecasting with Allison"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(here)
+library(lubridate)
+library(forecast)
+library(MLmetrics)
+library(tsibble)
+library(astsa)
+library(janitor)
+```
+
+```{r}
+# Read in Honolii SST Data
+
+# Lat 19.7580, Long -155.0896, time 1985-11-09T12:00:00Z - 2021-11-09T12:00:00Z from https://coastwatch.pfeg.noaa.gov/erddap/griddap/NOAA_DHW.html
+
+sst_honolii_1985_2021 <- read.csv(here("data", "sst_honolii_1985_2021.csv" ))
+sst_honolii_1985_2021
+```
+
+```{r}
+# sst_honolii_1985_2021 <- sst_honolii_1985_2021 %>% 
+# mutate(time = ymd_hms(time))
+# sst_honolii_1985_2021
+```
+
+
+```{r}
+# Select for SST column
+sst_honolii_1985_2021 <- sst_honolii_1985_2021 %>% 
+  select(CRW_SST)
+
+sst_honolii_1985_2021
+```
+
+
+```{r}
+# convert from data frame to a time series and save as new object
+sst_honolii_1985_2021_ts <- as.ts(sst_honolii_1985_2021)
+sst_honolii_1985_2021_ts
+
+```
+
+```{r}
+# create training as sst from 985-11-09 to 2010-11-09
+# create validation as sst from 2010-11-09 to 2021-11-09
+
+training=window(sst_honolii_1985_2021_ts, start = c(1), end = c(9132))
+validation=window(sst_honolii_1985_2021_ts, start = c(9132), end = c(13150))
+```
+
+```{r}
+training
+class(training)
+```
+
+```{r}
+validation
+class(validation)
+```
+
+```{r}
+naive = snaive(training, h=length(validation))
+MAPE(naive$mean, validation) * 100
+```
+
+```{r}
+plot(sst_honolii_1985_2021_ts, col="blue", xlab="Day", ylab="SST", main="Seasonal Naive Forecast", type='l')
+lines(naive$mean, col="red", lwd=2)
+```
+
