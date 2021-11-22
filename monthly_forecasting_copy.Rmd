@@ -1,0 +1,89 @@
+---
+title: "Monthly Forecasting"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(here)
+library(lubridate)
+library(forecast)
+library(MLmetrics)
+library(tsibble)
+library(astsa)
+library(janitor)
+```
+
+```{r}
+sst_honolii_1985_2021 <- read.csv(here("data", "sst_honolii_1985_2021.csv" ))
+sst_honolii_1985_2021
+```
+```{r}
+sst_honolii_1985_2021 <- sst_honolii_1985_2021 %>% 
+  select(time, CRW_SST)
+
+sst_honolii_1985_2021
+```
+
+
+```{r}
+sst_honolii_1985_2021 <- sst_honolii_1985_2021 %>%
+mutate(time = as.Date(time))
+sst_honolii_1985_2021
+```
+
+```{r}
+months(sst_honolii_1985_2021$time)
+```
+
+
+```{r}
+sst_honolii_1985_2021_month <- sst_honolii_1985_2021 %>% 
+  mutate(time = floor_date(time, "month")) %>% 
+  group_by(time) %>% 
+  summarise(mean_sst = mean(CRW_SST))
+
+sst_honolii_1985_2021_month
+```
+
+```{r}
+sst_honolii_1985_2021_month_ts <- ts(sst_honolii_1985_2021_month$mean_sst, start = c(1985, 11), frequency = 12)
+
+sst_honolii_1985_2021_month_ts
+```
+
+```{r}
+training=window(sst_honolii_1985_2021_month_ts, start = c(1985,11), end = c(2010,11))
+validation=window(sst_honolii_1985_2021_month_ts, start = c(2010,12), end = c(2015,11))
+```
+
+```{r}
+naive = snaive(training, h=length(validation))
+MAPE(naive$mean, validation) * 100
+```
+
+```{r}
+plot(sst_honolii_1985_2021_month_ts, col="blue", xlab="Day", ylab="SST", main="Seasonal Naive Forecast", type='l')
+lines(naive$mean, col="red", lwd=2)
+```
+
+```{r}
+dshw_model = dshw(training, period1=4, period2 = 12, h=length(validation))
+MAPE(dshw_model$mean, validation)*100
+```
+
+
+```{r}
+tbats_model = tbats(training)
+tbats_forecast = forecast(tbats_model, h=length(validation))
+MAPE(tbats_forecast$mean, validation) * 100
+
+tbats_plot <-plot(sst_honolii_1985_2021_month_ts, col="blue", xlab="Day", ylab="SST", main="Seasonal Naive Forecast", type='l')
+lines(tbats_forecast$mean, col="red", lwd=2)
+```
+
